@@ -107,6 +107,15 @@ class Cropp
                 call_user_func_array(array($image, $method['name']), $method['arguments']);
             }
         
+            // Check the directory and make it if required
+            if (!is_dir(public_path($cacheStorage))) {
+                if (!mkdir(public_path($cacheStorage), 493)) {
+                    throw new \RuntimeException(
+                        'Unable to create image cache directory ['. public_path($cacheStorage) .']'
+                    );
+                }
+            }
+            
             $res = $image->save(public_path($source), $quality);
             if (!$res) {
                 throw new \RuntimeException(
