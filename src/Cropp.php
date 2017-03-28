@@ -10,6 +10,8 @@ class Cropp
 {
     
     private $source    = '';
+    private $sourceDirectory = '';
+    private $sourceFile = '';
     private $fileHash  = '';
     private $extension = '';
     private $methods   = array();
@@ -17,9 +19,16 @@ class Cropp
     
     private $isSkip = false;
     
-    public function __construct($source, $isAssetWrap = true)
+    public function __construct($source, $isAssetWrap = true, $directory = null)
     {
         $this->isAssetWrap = $isAssetWrap;
+        
+        // If a directory is set then compile the source path
+        if (isset($directory)) {
+            $this->sourceFile = $source;
+            $source = $directory . $source;
+            $this->sourceDirectory = $directory;
+        }
         
         $source = public_path(ltrim($source, '/'));
         if (!is_readable($source)) {
@@ -40,11 +49,11 @@ class Cropp
         $this->source = $source;
     } // end __construct
     
-    public static function make($source, $isAssetWrap = true)
+    public static function make($source, $isAssetWrap = true, $directory = null)
     {
         $cropp = get_called_class();
         
-        return new $cropp($source, $isAssetWrap);
+        return new $cropp($source, $isAssetWrap, $directory);
     } // end make
     
     public function __call($name, $arguments)
@@ -59,6 +68,21 @@ class Cropp
         return $this->src();
     } // end __toString
     
+    /**
+     * Return the cache directory for the image
+     * 
+     * @return string
+     */
+    public function getCacheDirectory()
+    {
+        if (!empty($this->sourceDirectory)) {
+            $path = $this->sourceDirectory . config('yaro.cropp.cache_prefix', '');
+        } else {
+            $path = config('yaro.cropp.cache_dir', 'storage/cropp');
+        }
+        return trim($path, '/');
+    }
+    
     public function src()
     {
         if ($this->isSkip) {
@@ -66,7 +90,7 @@ class Cropp
         }
         
         $quality = config('yaro.cropp.cache_quality', 90);
-        $cacheStorage = trim(config('yaro.cropp.cache_dir', 'storage/cropp'), '/');
+        $cacheStorage = $this->getCacheDirectory();
         
         $methodsHash = md5(serialize($this->methods));
         $hash = md5($this->fileHash . $methodsHash . $quality);
@@ -83,6 +107,15 @@ class Cropp
                 call_user_func_array(array($image, $method['name']), $method['arguments']);
             }
         
+            // Check the directory and make it if required
+            if (!is_dir(public_path($cacheStorage))) {
+                if (!mkdir(public_path($cacheStorage), 493)) {
+                    throw new \RuntimeException(
+                        'Unable to create image cache directory ['. public_path($cacheStorage) .']'
+                    );
+                }
+            }
+            
             $res = $image->save(public_path($source), $quality);
             if (!$res) {
                 throw new \RuntimeException(
