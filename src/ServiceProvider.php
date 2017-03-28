@@ -1,7 +1,5 @@
-<?php 
-
+<?php
 namespace Yaro\Cropp;
-
 
 class ServiceProvider extends \Illuminate\Support\ServiceProvider
 {
